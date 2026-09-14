@@ -27,24 +27,41 @@ Use `mvn clean ...` rather than running an old `target/*.jar`, so you're
 always running the latest build.
 
 ## Sample data & demo logins
-On every startup, `DataLoader` seeds 7 investors, all with the password
-`password123` (stored as a BCrypt hash):
+
+On every startup, `DataLoader` seeds 7 investors:
 
 | Email | Age | Products |
 |---|---|---|
-| thabo.nkosi@example.com | 71 | Retirement Annuity (R500,000), Unit Trust (R120,000) |
-| lerato.dlamini@example.com | 36 | Living Annuity (R300,000), Tax-Free Savings (R36,000) |
-| sipho.mokoena@example.com | 27 | Unit Trust (R85,000), Living Annuity (R150,000) |
-| annelize.vandermerwe@example.com | 68 | Retirement Annuity (R720,000), Tax-Free Savings (R40,000) |
-| naledi.khumalo@example.com | 41 | Unit Trust (R60,000) |
-| johan.pretorius@example.com | 65 | Living Annuity (R410,000), Unit Trust (R95,000) |
-| grace.adeyemi@example.com | 76 | Retirement Annuity (R610,000), Tax-Free Savings (R30,000) |
+| sellwane.mosia@gmail.com | 71 | Retirement Annuity (R500,000), Unit Trust (R120,000) |
+| matshepo.mthembu@gmail.com | 36 | Living Annuity (R300,000), Tax-Free Savings (R36,000) |
+| sipho.mokoena@gmail.com | 27 | Unit Trust (R85,000), Living Annuity (R150,000) |
+| annelize.vandermerwe@gmail.com | 68 | Retirement Annuity (R720,000), Tax-Free Savings (R40,000) |
+| naledi.khumalo@gmail.com | 41 | Unit Trust (R60,000) |
+| johan.pretorius@gmail.com | 65 | Living Annuity (R410,000), Unit Trust (R95,000) |
+| grace.adeyemi@gmail.com | 76 | Retirement Annuity (R610,000), Tax-Free Savings (R30,000) |
 
 Johan is exactly 65, which is a useful edge case: the rule is "older than
 65", so his retirement withdrawal is still rejected.
 
-Browse `http://localhost:8080/h2-console` (JDBC URL: `jdbc:h2:mem:enviro365db`,
-user `sa`, no password) to inspect the database directly.
+**Passwords are not hardcoded anywhere.** Each investor above gets a
+fresh, randomly generated password every time the app starts, saved
+(in plain text, for local testing only) to an H2 table called
+`seed_credential`. To get a working login:
+
+1. With the backend running, open `http://localhost:8080/h2-console`.
+2. Connect with JDBC URL `jdbc:h2:mem:enviro365db`, user `sa`, no password.
+3. Run:
+   ```sql
+   SELECT * FROM SEED_CREDENTIAL;
+   ```
+4. Copy any row's `EMAIL` and `PLAINTEXT_PASSWORD` — that's a valid
+   login for the frontend.
+
+Because H2 is in-memory, passwords regenerate on every restart — re-run
+the query above each time you restart the backend.
+
+You can also browse the rest of the schema (`INVESTOR`, `PRODUCT`,
+`WITHDRAWAL_NOTICE`) from the same H2 console session.
 
 ## API endpoints
 
