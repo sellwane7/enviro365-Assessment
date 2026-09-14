@@ -1,0 +1,9 @@
+target/
+.idea/
+*.iml
+.vscode/
+*.class
+.DS_Store
+# H2 database files
+*.mv.db
+*.trace.db

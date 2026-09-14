@@ -1,0 +1,17 @@
+﻿# Backend (Java / Maven)
+backend/target/
+*.class
+*.jar
+
+# H2 database files
+*.mv.db
+*.trace.db
+
+# IDE
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# OS
+Thumbs.db

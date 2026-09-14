@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Enviro365 — Withdrawal Notices</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <div>
+      <span class="eyebrow">Enviro365 Investments</span>
+      <h1>Withdrawal Notices</h1>
+      <p>Portfolio review and withdrawal submission</p>
+    </div>
+    <div class="session-info">
+      <span class="who">Logged in as <strong id="sessionName">…</strong></span>
+      <button class="btn-ghost-light" id="logoutBtn">Log out</button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <div class="grid">
+
+    <!-- LEFT: Portfolio -->
+    <div>
+      <section class="panel" id="portfolioPanel">
+        <h2>Portfolio</h2>
+        <div class="sub">Current holdings and balances</div>
+        <div id="portfolioBody">
+          <div class="field-hint">Loading portfolio…</div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Submit a withdrawal</h2>
+        <div class="sub">Requests are validated against product rules before approval</div>
+        <form id="withdrawalForm">
+          <label for="productSelect">Product</label>
+          <select id="productSelect"></select>
+
+          <label for="amountInput">Amount requested (ZAR)</label>
+          <input type="text" id="amountInput" placeholder="0.00">
+          <div class="field-hint" id="balanceHint"></div>
+
+          <button type="submit" class="btn-primary" id="submitBtn">Submit withdrawal</button>
+        </form>
+        <div class="notice" id="formNotice"></div>
+      </section>
+    </div>
+
+    <!-- RIGHT: History -->
+    <div>
+      <section class="panel">
+        <div class="history-head">
+          <div>
+            <h2>Withdrawal history</h2>
+            <div class="sub">Every notice submitted for this investor</div>
+          </div>
+          <button class="btn-ghost" id="downloadCsv">Download CSV</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Product</th>
+              <th>Requested</th>
+              <th>Balance after</th>
+              <th>Date</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="historyBody">
+            <tr class="empty-row"><td colspan="5">Loading history…</td></tr>
+          </tbody>
+        </table>
+      </section>
+    </div>
+
+  </div>
+
+  <footer>Enviro365 Investments · Junior Developer Assessment 2026</footer>
+</div>
+
+<script>
+const API_BASE = "http://localhost:8080/api";
+
+const storedInvestor = sessionStorage.getItem("enviro365_investor");
+if (!storedInvestor) {
+  window.location.href = "login.html";
+  throw new Error("Not logged in - redirecting to login.html");
+}
+const loggedInInvestor = JSON.parse(storedInvestor);
+const CURRENT_INVESTOR_ID = loggedInInvestor.id;
+
+document.getElementById("sessionName").textContent = loggedInInvestor.fullName || "";
+document.getElementById("logoutBtn").addEventListener("click", () => {
+  sessionStorage.removeItem("enviro365_investor");
+  window.location.href = "login.html";
+});
+
+let currentPortfolio = null;
+
+const portfolioBody = document.getElementById("portfolioBody");
+const productSelect = document.getElementById("productSelect");
+const amountInput = document.getElementById("amountInput");
+const balanceHint = document.getElementById("balanceHint");
+const withdrawalForm = document.getElementById("withdrawalForm");
+const formNotice = document.getElementById("formNotice");
+const submitBtn = document.getElementById("submitBtn");
+const historyBody = document.getElementById("historyBody");
+const downloadCsvBtn = document.getElementById("downloadCsv");
+
+function money(n){
+  const num = Number(n);
+  return "R " + num.toLocaleString("en-ZA", {minimumFractionDigits:2, maximumFractionDigits:2});
+}
+
+function productTypeLabel(type){
+  return type.replaceAll("_", " ").toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+}
+
+function showNotice(kind, message){
+  formNotice.className = "notice show " + kind;
+  formNotice.textContent = message;
+}
+function clearNotice(){
+  formNotice.className = "notice";
+  formNotice.textContent = "";
+}
+
+async function loadPortfolio(investorId){
+  portfolioBody.innerHTML = '<div class="field-hint">Loading portfolio…</div>';
+  productSelect.innerHTML = "";
+  try{
+    const res = await fetch(`${API_BASE}/investors/${investorId}/portfolio`);
+    if(!res.ok) throw new Error("Could not load portfolio (status " + res.status + ")");
+    const data = await res.json();
+    currentPortfolio = data;
+    renderPortfolio(data);
+    populateProductSelect(data);
+  }catch(err){
+    portfolioBody.innerHTML = `<div class="field-hint">Couldn't load this investor's portfolio. Confirm the backend is running at localhost:8080.</div>`;
+  }
+}
+
+function renderPortfolio(data){
+  const rows = data.products.map(p => `
+    <div class="product-row">
+      <div>
+        <div class="product-name">${p.productName}</div>
+        <span class="product-type">${productTypeLabel(p.productType)}</span>
+      </div>
+      <div class="product-balance">${money(p.balance)}</div>
+    </div>
+  `).join("");
+
+  portfolioBody.innerHTML = `
+    <div class="investor-name">${data.fullName}</div>
+    <div class="investor-meta">${data.email} · Age ${data.age}</div>
+    ${rows || '<div class="field-hint">No products on this portfolio.</div>'}
+  `;
+}
+
+function populateProductSelect(data){
+  productSelect.innerHTML = data.products.map(p =>
+    `<option value="${p.id}" data-balance="${p.balance}" data-type="${p.productType}">
+      ${p.productName} — ${money(p.balance)}
+    </option>`
+  ).join("");
+  updateBalanceHint();
+}
+
+function updateBalanceHint(){
+  const opt = productSelect.selectedOptions[0];
+  if(!opt){ balanceHint.textContent = ""; return; }
+  const balance = Number(opt.dataset.balance);
+  balanceHint.textContent = `Available balance: ${money(balance)} · maximum withdrawal is 90% of balance`;
+}
+
+productSelect.addEventListener("change", updateBalanceHint);
+
+async function loadHistory(investorId){
+  historyBody.innerHTML = '<tr class="empty-row"><td colspan="5">Loading history…</td></tr>';
+  try{
+    const res = await fetch(`${API_BASE}/withdrawals/investor/${investorId}`);
+    if(!res.ok) throw new Error("status " + res.status);
+    const data = await res.json();
+    renderHistory(data);
+  }catch(err){
+    historyBody.innerHTML = '<tr class="empty-row"><td colspan="5">Couldn\'t load withdrawal history.</td></tr>';
+  }
+}
+
+function renderHistory(notices){
+  if(!notices.length){
+    historyBody.innerHTML = '<tr class="empty-row"><td colspan="5">No withdrawals submitted yet for this investor.</td></tr>';
+    return;
+  }
+  historyBody.innerHTML = notices.map(n => `
+    <tr>
+      <td>${n.product.productName}</td>
+      <td class="amount-neg">−${money(n.amountRequested)}</td>
+      <td>${money(n.balanceAfter)}</td>
+      <td>${new Date(n.requestDate).toLocaleString("en-ZA", {day:"2-digit", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit"})}</td>
+      <td><span class="status ${n.status}">${n.status}</span></td>
+    </tr>
+  `).join("");
+}
+
+withdrawalForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  clearNotice();
+
+  const productId = productSelect.value;
+  const amount = parseFloat(amountInput.value);
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = "Submitting…";
+
+  try{
+    const res = await fetch(`${API_BASE}/withdrawals`, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({productId: Number(productId), amount})
+    });
+
+    if(res.ok){
+      const notice = await res.json();
+      showNotice("ok", `Withdrawal approved. New balance: ${money(notice.balanceAfter)}.`);
+      amountInput.value = "";
+      await Promise.all([loadPortfolio(CURRENT_INVESTOR_ID), loadHistory(CURRENT_INVESTOR_ID)]);
+      // restore the selected product after portfolio refresh
+      productSelect.value = productId;
+      updateBalanceHint();
+    } else {
+      let message = "This withdrawal couldn't be processed.";
+      try{
+        const errBody = await res.json();
+        message = errBody.message || errBody.error || message;
+      }catch(_e){}
+      showNotice("err", message);
+    }
+  }catch(err){
+    showNotice("err", "Couldn't reach the backend. Confirm it's running at localhost:8080.");
+  }finally{
+    submitBtn.disabled = false;
+    submitBtn.textContent = "Submit withdrawal";
+  }
+});
+
+downloadCsvBtn.addEventListener("click", () => {
+  window.location.href = `${API_BASE}/withdrawals/investor/${CURRENT_INVESTOR_ID}/export`;
+});
+
+// initial load
+loadPortfolio(CURRENT_INVESTOR_ID);
+loadHistory(CURRENT_INVESTOR_ID);
+</script>
+</body>
+</html>

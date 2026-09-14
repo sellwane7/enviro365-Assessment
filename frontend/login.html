@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Enviro365 — Investor Login</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header>
+  <div class="header-inner">
+    <div>
+      <span class="eyebrow">Enviro365 Investments</span>
+      <h1>Investor Login</h1>
+      <p>Sign in to view your portfolio and submit withdrawals</p>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="login-shell">
+    <div class="login-card">
+      <h2>Welcome back</h2>
+      <div class="sub">Enter your investor email and password to continue.</div>
+
+      <form id="loginForm">
+        <label for="emailInput">Email address</label>
+        <input type="text" id="emailInput" autocomplete="username" placeholder="you@example.com">
+
+        <label for="passwordInput">Password</label>
+        <input type="password" id="passwordInput" autocomplete="current-password" placeholder="••••••••">
+
+        <button type="submit" class="btn-primary" id="loginBtn">Log in</button>
+      </form>
+      <div class="notice" id="loginNotice"></div>
+
+      <div class="demo-hint">
+        <strong>Demo login</strong> — every seeded investor uses the password
+        <strong>password123</strong>. See the README for the list of investor emails.
+      </div>
+    </div>
+  </div>
+  <footer>Enviro365 Investments · Junior Developer Assessment 2026</footer>
+</div>
+
+<script>
+const API_BASE = "http://localhost:8080/api";
+
+const loginForm = document.getElementById("loginForm");
+const emailInput = document.getElementById("emailInput");
+const passwordInput = document.getElementById("passwordInput");
+const loginBtn = document.getElementById("loginBtn");
+const loginNotice = document.getElementById("loginNotice");
+
+function showNotice(kind, message){
+  loginNotice.className = "notice show " + kind;
+  loginNotice.textContent = message;
+}
+
+if (sessionStorage.getItem("enviro365_investor")) {
+  window.location.href = "index.html";
+}
+
+loginForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+
+  loginBtn.disabled = true;
+  loginBtn.textContent = "Signing in…";
+
+  try {
+    const res = await fetch(`${API_BASE}/auth/login`, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        email: emailInput.value.trim(),
+        password: passwordInput.value
+      })
+    });
+
+    if (res.ok) {
+      const investor = await res.json();
+      sessionStorage.setItem("enviro365_investor", JSON.stringify(investor));
+      window.location.href = "index.html";
+    } else {
+      let message = "Login failed. Please check your details and try again.";
+      try {
+        const errBody = await res.json();
+        message = errBody.message || message;
+      } catch (_e) {}
+      showNotice("err", message);
+    }
+  } catch (err) {
+    showNotice("err", "Couldn't reach the backend. Confirm it's running at localhost:8080.");
+  } finally {
+    loginBtn.disabled = false;
+    loginBtn.textContent = "Log in";
+  }
+});
+</script>
+</body>
+</html>
